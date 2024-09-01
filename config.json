@@ -1,3 +1,6 @@
 {
-    "relativePathToDownload": "./img"
+    "downloadUrlAttribute": "communityImg",
+    "fileNameAttribute": "communityName",
+    "inputFolderPath": "./input",
+    "outputFolderPath": "./output"
 }

@@ -1,36 +1,89 @@
-const https = require('https');
+const https = require("https");
 const fs = require("fs");
-const path = require('path');
+const path = require("path");
+const { URL } = require("url"); // Import the URL module
 
-let globalConfig = JSON.parse(fs.readFileSync("config.json"));
-let filesLinksObj = JSON.parse(fs.readFileSync("filesToDownload.json"));
+let { downloadUrlAttribute, fileNameAttribute, inputFolderPath, outputFolderPath } = JSON.parse(
+  fs.readFileSync("config.json")
+);
 
-function downloadFile(urlToDownload, fileName) {
-    let basePath = path.join(globalConfig.relativePathToDownload, getCurrentDateTime());
-    if (!fs.existsSync(basePath)) {
-        fs.mkdirSync(basePath, { recursive: true });
-    }
-    let downloadPath = path.join(basePath, fileName);
-    let file = fs.createWriteStream(downloadPath);
+async function downloadFile(downloadUrl, nameToSave) {
+  const currentDate = getCurrentDateTime();
 
-    https.get(urlToDownload, function (response) {
-        response.pipe(file);
-        file.on("finish", function () {
-            file.close();
-            console.log("DONE LOADING");
-        })
-    }).on("error", function (err) {
-        console.log("ERROR " + err.message);
-        fs.unlink(downloadPath);
+  if (!downloadUrl) {
+    console.error(`Error: Missing download URL for file ${nameToSave}`);
+    return;
+  }
+
+  if (!nameToSave) {
+    nameToSave = `${currentDate}`;
+    console.warn(`Warning: No filename provided, using ${nameToSave}`);
+  }
+
+  const basePath = path.join(outputFolderPath, getCurrentDateTime());
+  fs.mkdirSync(basePath, { recursive: true }); // Ensure directory exists
+
+  const downloadPath = path.join(basePath, nameToSave);
+
+  try {
+    const file = fs.createWriteStream(downloadPath); // Write to file, not URL
+
+    const response = await new Promise((resolve, reject) => {
+      https.get(downloadUrl, resolve).on("error", reject);
     });
+
+    response.pipe(file);
+
+    await new Promise((resolve, reject) => {
+      file.on("finish", resolve);
+      file.on("error", reject);
+    });
+
+    console.log("Download complete:", downloadPath);
+  } catch (err) {
+    console.error("Download error for", downloadUrl, "reason:", err.message);
+
+    try {
+      fs.unlinkSync(downloadPath); // Cleanup incomplete file
+    } catch (cleanupErr) {
+      console.error("Cleanup error:", cleanupErr.message);
+    }
+  }
 }
 
 function getCurrentDateTime() {
-    let f = new Date();
-    return `Day-${f.getDate()}-Month-${(f.getMonth() + 1)}-year-${f.getFullYear()}`
+  let f = new Date();
+  return `Day-${f.getDate()}-Month-${f.getMonth() + 1}-year-${f.getFullYear()}`;
 }
 
-filesLinksObj.forEach(fileObj => {
-    downloadFile(fileObj.fileUrl, fileObj.fileName);
-});
+fs.readdir(inputFolderPath, (err, files) => {
+  if (err) {
+    console.error("Error al leer la carpeta:", err);
+    return;
+  }
 
+  files.forEach((file) => {
+    if (path.extname(file) === ".json") {
+      // Filtra solo archivos .json
+      const filePath = path.join(inputFolderPath, file);
+
+      fs.readFile(filePath, "utf8", (err, data) => {
+        if (err) {
+          console.error("Error al leer el archivo:", err);
+          return;
+        }
+
+        try {
+          const fileData = JSON.parse(data);
+          fileData.forEach((element) => {
+            const downloadUrl = element[downloadUrlAttribute];
+            const nameToSave = element[fileNameAttribute];
+            downloadFile(downloadUrl, nameToSave);
+          });
+        } catch (err) {
+          console.error("Error al analizar JSON:", err);
+        }
+      });
+    }
+  });
+});
