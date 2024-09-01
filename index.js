@@ -7,6 +7,13 @@ let { downloadUrlAttribute, fileNameAttribute, inputFolderPath, outputFolderPath
   fs.readFileSync("config.json")
 );
 
+function isLocalFileSystemUrl(string) {
+  if (string.startsWith("./") || string.startsWith("/")) {
+    return true;
+  }
+  return false;
+}
+
 async function downloadFile(downloadUrl, nameToSave) {
   const currentDate = getCurrentDateTime();
 
@@ -18,6 +25,11 @@ async function downloadFile(downloadUrl, nameToSave) {
   if (!nameToSave) {
     nameToSave = `${currentDate}`;
     console.warn(`Warning: No filename provided, using ${nameToSave}`);
+  }
+
+  if (isLocalFileSystemUrl(downloadUrl)) {
+    console.log(`Local url detected: ${downloadUrl}, ignored this file`);
+    return;
   }
 
   const basePath = path.join(outputFolderPath, getCurrentDateTime());
