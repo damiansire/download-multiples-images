@@ -3,9 +3,15 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url"); // Import the URL module
 
-let { downloadUrlAttribute, fileNameAttribute, inputFolderPath, outputFolderPath } = JSON.parse(
+let { downloadUrlAttribute, fileNameAttribute, inputFolderPath, outputFolderPath, defaultExtension } = JSON.parse(
   fs.readFileSync("config.json")
 );
+
+function cleanUrl(url) {
+  const regex = /\?.*$/;
+  const cleanUrlResult = url.replace(regex, "");
+  return cleanUrlResult;
+}
 
 function isLocalFileSystemUrl(string) {
   if (string.startsWith("./") || string.startsWith("/")) {
@@ -34,6 +40,15 @@ async function downloadFile(downloadUrl, nameToSave) {
 
   const basePath = path.join(outputFolderPath, getCurrentDateTime());
   fs.mkdirSync(basePath, { recursive: true }); // Ensure directory exists
+
+  if (!nameToSave.includes(".")) {
+    let fileExtension = path.extname(cleanUrl(downloadUrl));
+    if (!fileExtension) {
+      console.log(`Don't have extension for ${nameToSave} set default extension: ${defaultExtension}`);
+      fileExtension = defaultExtension;
+    }
+    nameToSave = nameToSave + fileExtension;
+  }
 
   const downloadPath = path.join(basePath, nameToSave);
 

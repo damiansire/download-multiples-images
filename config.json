@@ -2,5 +2,6 @@
     "downloadUrlAttribute": "communityImg",
     "fileNameAttribute": "communityName",
     "inputFolderPath": "./input",
-    "outputFolderPath": "./output"
+    "outputFolderPath": "./output",
+    "defaultExtension": ".jpg"
 }
